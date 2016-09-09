@@ -4,52 +4,57 @@ require 'open3'
 require 'pp'
 require 'shellwords'
 
-# Converts media files to use container/codec pairings which are compatible with:
+# Converts media files to use container/codec pairings that are compatible with:
 # - Google Chrome / Chromecast
 # - Microsoft Xbox One
 module ConvertForAll
   module_function
 
   def get_streams(filename)
-    stdin, stdout, stderr = Open3.popen3('ffprobe -show_streams -print_format json ' + Shellwords.escape(filename))
+    filename = Shellwords.escape(filename)
+    cmd = "ffprobe -show_streams -print_format json #{filename}"
+    _stdin, stdout, _stderr = Open3.popen3(cmd)
     JSON.parse(stdout.read, symbolize_names: true)[:streams]
   end
 
   def valid_audio_codecs
-    ['aac']
+    %w(aac)
   end
 
   def audio_needs_conversion?(streams)
     valid_streams = streams.select do |s|
-      s[:codec_type] == "audio" &&
-      valid_audio_codecs.include?(s[:codec_name])
+      s[:codec_type] == 'audio' &&
+        valid_audio_codecs.include?(s[:codec_name])
     end
     valid_streams.empty?
   end
 
   def valid_video_codecs
-    ['h264', 'hevc']
+    %w(h264 hevc)
   end
 
   def video_needs_conversion?(streams)
     valid_streams = streams.select do |s|
-      s[:codec_type] == "video" &&
-      valid_video_codecs.include?(s[:codec_name])
+      s[:codec_type] == 'video' &&
+        valid_video_codecs.include?(s[:codec_name])
     end
     valid_streams.empty?
   end
 
   def container_needs_conversion?(filename)
-    File.extname(filename) != ".mp4"
+    File.extname(filename) != '.mp4'
   end
 
   def convert_if_needed(filename)
     streams = get_streams(filename)
-    a = audio_needs_conversion?(streams)
-    v = video_needs_conversion?(streams)
-    c = container_needs_conversion?(filename)
 
-    convert(filename, audio_encode: a, video_encode: v, container_convert: c) if a || v || c
+    params = {
+      audio_encode: audio_needs_conversion?(streams),
+      video_encode: video_needs_conversion?(streams),
+      container_convert: container_needs_conversion?(filename)
+    }
+
+    convert(filename, params) if params.any? { |n| n == false }
   end
 
   def convert(filename, opts)
@@ -57,22 +62,22 @@ module ConvertForAll
     pp opts
 
     dir = File.dirname(filename)
-    basename = File.basename(filename, ".*") + '-compat.mp4'
+    basename = File.basename(filename, '.*') + '-compat.mp4'
     newfile = File.join(dir, basename)
 
     in_fname = Shellwords.escape(filename)
     out_fname = Shellwords.escape(newfile)
 
-    ffmpeg_vid = 'copy'
-    ffmpeg_vid = 'h264' if opts[:video_encode]
+    video = 'copy'
+    video = 'h264' if opts[:video_encode]
 
-    ffmpeg_aud = 'copy'
-    ffmpeg_aud = '-c:a aac' if opts[:audio_encode]
+    audio = 'copy'
+    audio = '-c:a aac' if opts[:audio_encode]
 
-    full_ffmpeg_cmd = "ffmpeg -i #{in_fname} -c:v #{ffmpeg_vid} -c:a #{ffmpeg_aud} #{out_fname}"
-    puts "Running this ffmpeg incantation:"
-    puts full_ffmpeg_cmd
-    system(full_ffmpeg_cmd)
+    cmd = "ffmpeg -i #{in_fname} -c:v #{video} -c:a #{audio} #{out_fname}"
+    puts 'Running this ffmpeg incantation:'
+    puts cmd
+    system(cmd)
   end
 
   def run(files)
