@@ -54,7 +54,7 @@ module ConvertForAll
       container_convert: container_needs_conversion?(filename)
     }
 
-    convert(filename, params) if params.any? { |k,v| v }
+    convert(filename, params) if params.any? { |_k, v| v }
   end
 
   def convert(filename, opts)
