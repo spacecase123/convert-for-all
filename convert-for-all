@@ -10,6 +10,9 @@ require 'shellwords'
 module ConvertForAll
   module_function
 
+  VALID_AUDIO_CODECS = %w(aac).freeze
+  VALID_VIDEO_CODECS = %w(h264).freeze
+
   def get_streams(filename)
     filename = Shellwords.escape(filename)
     cmd = "ffprobe -show_streams -print_format json #{filename}"
@@ -17,26 +20,16 @@ module ConvertForAll
     JSON.parse(stdout.read, symbolize_names: true)[:streams]
   end
 
-  def valid_audio_codecs
-    %w(aac)
-  end
-
   def audio_needs_conversion?(streams)
     valid_streams = streams.select do |s|
-      s[:codec_type] == 'audio' &&
-        valid_audio_codecs.include?(s[:codec_name])
+      s[:codec_type] == 'audio' && VALID_AUDIO_CODECS.include?(s[:codec_name])
     end
     valid_streams.empty?
   end
 
-  def valid_video_codecs
-    %w(h264 hevc)
-  end
-
   def video_needs_conversion?(streams)
     valid_streams = streams.select do |s|
-      s[:codec_type] == 'video' &&
-        valid_video_codecs.include?(s[:codec_name])
+      s[:codec_type] == 'video' && VALID_VIDEO_CODECS.include?(s[:codec_name])
     end
     valid_streams.empty?
   end
@@ -47,6 +40,10 @@ module ConvertForAll
 
   def convert_if_needed(filename)
     streams = get_streams(filename)
+    if streams.nil?
+      puts "No valid streams found in '#{filename}', skipping..."
+      return
+    end
 
     params = {
       audio_encode: audio_needs_conversion?(streams),
@@ -72,7 +69,7 @@ module ConvertForAll
     video = 'h264' if opts[:video_encode]
 
     audio = 'copy'
-    audio = '-c:a aac' if opts[:audio_encode]
+    audio = 'aac' if opts[:audio_encode]
 
     cmd = "ffmpeg -i #{in_fname} -c:v #{video} -c:a #{audio} #{out_fname}"
     puts 'Running this ffmpeg incantation:'
