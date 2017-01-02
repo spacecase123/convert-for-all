@@ -39,9 +39,14 @@ module ConvertForAll
   end
 
   def convert_if_needed(filename)
+    unless File.readable?(filename)
+      STDERR.puts "'#{filename}' is not a readable file, skipping..."
+      return
+    end
+
     streams = get_streams(filename)
     if streams.nil?
-      puts "No valid streams found in '#{filename}', skipping..."
+      STDERR.puts "'#{filename}' does not have any valid streams, skipping..."
       return
     end
 
