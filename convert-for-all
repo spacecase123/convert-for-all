@@ -1,17 +1,20 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
+
 require 'json'
 require 'open3'
 require 'pp'
 require 'shellwords'
 
-# Converts media files to use container/codec pairings that are compatible with:
+# Converts media files to use container/codec pairings that are compatible
+# with:
 # - Google Chrome / Chromecast
 # - Microsoft Xbox One
 module ConvertForAll
   module_function
 
-  VALID_AUDIO_CODECS = %w(aac).freeze
-  VALID_VIDEO_CODECS = %w(h264).freeze
+  VALID_AUDIO_CODECS = %w[aac].freeze
+  VALID_VIDEO_CODECS = %w[h264].freeze
 
   def get_streams(filename)
     filename = Shellwords.escape(filename)
@@ -40,13 +43,13 @@ module ConvertForAll
 
   def convert_if_needed(filename)
     unless File.readable?(filename)
-      STDERR.puts "'#{filename}' is not a readable file, skipping..."
+      warn "'#{filename}' is not a readable file, skipping..."
       return
     end
 
     streams = get_streams(filename)
     if streams.nil?
-      STDERR.puts "'#{filename}' does not have any valid streams, skipping..."
+      warn "'#{filename}' does not have any valid streams, skipping..."
       return
     end
 
